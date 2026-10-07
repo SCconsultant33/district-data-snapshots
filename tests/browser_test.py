@@ -31,6 +31,9 @@ def check(page, selector, expected):
     actual = page.locator(selector).inner_text()
     assert actual == expected, (selector, actual, expected)
 
+def role(page, name):
+    return page.locator('#role-chart li').filter(has=page.get_by_text(name, exact=True))
+
 def overflow(page):
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Horizontal page overflow'
     assert page.evaluate("[...document.querySelectorAll('th,td')].every(e => e.scrollWidth <= e.clientWidth + 1)"), 'Cell text overflow'
@@ -45,39 +48,60 @@ with sync_playwright() as p:
     check(page, '#total', '7')
     check(page, '#represented', '3 of 28')
     assert page.locator('#refresh, #refreshed').count() == 0
+    check(page, '#most-recent', '10/7/2026')
+    check(page, '#aggregate-heading', 'Aggregated Response Data')
+    check(page, '#responses', 'Individual Responses')
+    check(page, '#role-heading', 'Role with Primary Responsibility for EDP Coordination')
+    assert 'Response details' not in page.locator('body').inner_text()
+    assert 'Responses reflect reported' not in page.locator('body').inner_text()
+    assert page.locator('#role-summary').is_hidden()
+    assert page.locator('#rows').evaluate("e => e.closest('section').id") == 'individual-section'
+    assert page.locator('#role-chart').evaluate("e => e.closest('section').id") == 'response-section'
+    link=page.locator('.submit-card')
+    assert link.get_attribute('target') == '_blank'
+    assert link.get_attribute('rel') == 'noopener noreferrer'
+    assert link.get_attribute('href') == 'https://docs.google.com/forms/d/e/1FAIpQLSdmKski7E6IwdQmCuMvX4GXt2oktjThlhbXTtLcCviezOgmrA/viewform'
+    heights=page.locator('.cards > *').evaluate_all('elements => elements.map(e=>e.getBoundingClientRect().height)')
+    assert max(heights)-min(heights) < 1
+    assert page.locator('#role-chart .role-name').all_inner_texts() == ['School counselor','Career counselor','Career development staff','Shared responsibility','Other','No response provided']
+    colors={name:role(page,name).locator('.bar-fill').evaluate('e=>getComputedStyle(e).backgroundColor') for name in ['School counselor','Career counselor','Career development staff','Shared responsibility','Other']}
+    assert len(set(colors.values()))==5
+    assert page.locator('#rows tr').evaluate_all("elements => elements.map(e=>e.children[0].innerText)") == [r['district'] for r in FIXTURES['initial']['rows']]
     assert page.locator('.description').inner_text() == 'This district snapshot is seeking to better understand school counselor responsibilities and expectations related to Educational Development Plan (EDP) administration and other career-related tasks.'
     assert page.evaluate("document.getElementById('awaiting-heading').compareDocumentPosition(document.getElementById('responses')) & Node.DOCUMENT_POSITION_FOLLOWING")
     assert page.locator('#awaiting-list').evaluate("e => getComputedStyle(e).columnCount") == '4'
-    assert page.locator('#role-chart li').count() == 5
-    check(page, '#role-chart li:first-child .role-name', 'Counselor')
+    assert page.locator('#role-chart li').count() == 6
+    check(page, '#role-chart li:first-child .role-name', 'School counselor')
     check(page, '#role-chart li:first-child .role-count', '2 responses (28.6%)')
     assert abs(float(page.locator('#role-chart li:first-child .bar-fill').evaluate('e => parseFloat(e.style.width)')) - 200/7) < .001
     assert page.locator('#role-chart script').count() == 0
     assert page.locator('#rows tr').count() == 7
     assert page.locator('#awaiting-list li').count() == 25
     assert page.locator('#rows').inner_text().count('Avondale') == 2
-    assert '<script>alert(1)</script>' in page.locator('#rows').inner_text()
+    assert '<script>' not in page.locator('#rows').inner_text()
+    assert 'Elementary' not in page.locator('#rows').inner_text()
     assert page.locator('#rows script').count() == 0
     page.select_option('#district', 'Avondale')
     page.select_option('#level', 'High School')
     check(page, '#result-count', '1 of 7 responses shown.')
-    assert page.locator('#role-chart li').count() == 1
-    check(page, '#role-chart .role-name', 'Counselor')
-    check(page, '#role-chart .role-count', '1 response (100%)')
+    check(page, '#most-recent', '10/7/2026')
+    assert role(page,'School counselor').locator('.bar-fill').evaluate('e=>getComputedStyle(e).backgroundColor') == colors['School counselor']
+    assert page.locator('#role-chart li').count() == 5
+    assert role(page, 'School counselor').locator('.role-count').inner_text() == '1 response (100%)'
+    assert role(page, 'Career counselor').locator('.role-count').inner_text() == '0 responses (0%)'
     check(page, '#total', '7')
     check(page, '#represented', '3 of 28')
     page.select_option('#district', 'Berkley')
     check(page, '#rows td:nth-child(3)', 'No response provided')
-    check(page, '#role-chart .role-name', 'No response provided')
-    check(page, '#role-chart .role-count', '1 response (100%)')
-    page.select_option('#level', 'Elementary')
+    assert role(page, 'No response provided').locator('.role-count').inner_text() == '1 response (100%)'
+    page.select_option('#level', 'Other')
     check(page, '#rows', 'No responses match the selected filters.')
     assert page.locator('#role-chart li').count() == 0
     check(page, '#role-summary', 'No responses match the selected filters.')
     page.click('#reset')
     assert page.input_value('#district') == '' and page.input_value('#level') == ''
     check(page, '#result-count', '7 of 7 responses shown.')
-    assert page.locator('#role-chart li').count() == 5
+    assert page.locator('#role-chart li').count() == 6
     print('PASS role chart counts/percentages, combined chart/table filters, summaries, reset, duplicate rows, blanks, safe text rendering, new layout')
 
     page.select_option('#district', 'Avondale')
@@ -86,6 +110,7 @@ with sync_playwright() as p:
     page.evaluate('(value) => { window.fixture = value; }', FIXTURES['next'])
     page.clock.fast_forward(60000)
     check(page, '#total', '8')
+    check(page, '#most-recent', '10/8/2026')
     check(page, '#represented', '4 of 28')
     assert page.input_value('#district') == 'Avondale'
     assert page.input_value('#level') == 'High School'
@@ -143,6 +168,7 @@ with sync_playwright() as p:
     assert page.locator('#awaiting-list').is_hidden()
     load(page, FIXTURES['empty'])
     check(page, '#total', '0')
+    check(page, '#most-recent', 'No responses yet')
     check(page, '#represented', '0 of 28')
     check(page, '#rows', 'No responses have been submitted yet.')
     assert page.locator('#role-chart li').count() == 0
@@ -168,7 +194,7 @@ with sync_playwright() as p:
 
     load(page, FIXTURES['initial'])
     page.focus('.skip')
-    expected = ['district','level','reset']
+    expected = ['submit-response','district','level','reset']
     for name in expected:
         page.keyboard.press('Tab')
         assert page.evaluate('document.activeElement.id') == name

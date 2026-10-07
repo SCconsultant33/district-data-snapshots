@@ -45,7 +45,8 @@ function getDashboardData() {
       return tab + '!' + column + (CONFIG.headerRow + 1) + ':' + column;
     });
     const result = Sheets.Spreadsheets.Values.batchGet(CONFIG.spreadsheetId, {
-      ranges, valueRenderOption: 'FORMATTED_VALUE', majorDimension: 'ROWS'
+      ranges, valueRenderOption: 'UNFORMATTED_VALUE',
+      dateTimeRenderOption: 'SERIAL_NUMBER', majorDimension: 'ROWS'
     });
     const values = {};
     fields.forEach((field, i) => {
@@ -97,6 +98,70 @@ function resolveHeaders_(actual, expected) {
   return result;
 }
 
+// Exact form choices and shorter display aliases. Unknown entered text is Other.
+function displayRole_(value) {
+  const answer = clean_(value);
+  if (!answer) return 'No response provided';
+  const labels = {
+    'school counselor': 'School counselor',
+    'career counselor': 'Career counselor',
+    'career counselor (school counselor in a defined career-focused role)': 'Career counselor',
+    'career development staff': 'Career development staff',
+    'career development staff member in another role (e.g., specialist, technician, or paraprofessional)': 'Career development staff',
+    'shared responsibility': 'Shared responsibility',
+    'shared responsibility across roles': 'Shared responsibility',
+    'other': 'Other'
+  };
+  return Object.prototype.hasOwnProperty.call(labels, key_(answer))
+    ? labels[key_(answer)] : 'Other';
+}
+
+function displayLevel_(value) {
+  const answer = clean_(value);
+  if (!answer) return 'No response provided';
+  const labels = {
+    'high school': 'High School',
+    'junior high': 'Junior High School',
+    'junior high school': 'Junior High School',
+    'middle': 'Middle School',
+    'middle school': 'Middle School',
+    'other': 'Other'
+  };
+  return Object.prototype.hasOwnProperty.call(labels, key_(answer))
+    ? labels[key_(answer)] : 'Other';
+}
+
+function levelRank_(value) {
+  const order = ['High School', 'Junior High School', 'Middle School', 'Other', 'No response provided'];
+  const rank = order.indexOf(value);
+  return rank < 0 ? order.length : rank;
+}
+
+// Sheets serials encode the spreadsheet's local calendar date, not browser time.
+function responseDate_(value) {
+  let serial = typeof value === 'number' ? value : NaN;
+  if (typeof value === 'string') {
+    const match = clean_(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?: (\d{1,2}):(\d{2})(?::(\d{2}))?(?: (AM|PM))?)?$/i);
+    if (match) {
+      const month = +match[1], day = +match[2], year = +match[3];
+      let hour = +(match[4] || 0);
+      const minute = +(match[5] || 0), second = +(match[6] || 0);
+      const meridiem = (match[7] || '').toUpperCase();
+      if (meridiem) {
+        if (hour < 1 || hour > 12) return null;
+        hour = hour % 12 + (meridiem === 'PM' ? 12 : 0);
+      }
+      const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+      if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 ||
+          date.getUTCDate() !== day || hour > 23 || minute > 59 || second > 59) return null;
+      serial = date.getTime() / 86400000 + 25569;
+    }
+  }
+  if (!Number.isFinite(serial) || serial <= 0 || serial >= 2958466) return null;
+  const date = new Date((Math.floor(serial) - 25569) * 86400000);
+  return {serial, date: date.toISOString().slice(0, 10)};
+}
+
 function summarize_(input, aliases, refreshedAt) {
   const canonical = new Map(DISTRICTS.map(name => [key_(name), name]));
   const aliasMap = new Map(Object.keys(aliases).map(name => [key_(name), aliases[name]]));
@@ -104,19 +169,26 @@ function summarize_(input, aliases, refreshedAt) {
     if (!canonical.has(key_(target))) throw new Error('Alias target must be a reference district.');
   }
   const represented = new Set();
+  let latest = null;
   const rows = input.filter(row => ['timestamp', 'district', 'level', 'role']
     .some(field => clean_(row[field]) !== '')).map(row => {
+    const parsed = responseDate_(row.timestamp);
+    if (parsed && (!latest || parsed.serial > latest.serial)) latest = parsed;
     const rawDistrict = clean_(row.district);
     const mapped = aliasMap.get(key_(rawDistrict)) || rawDistrict;
-    const district = canonical.get(key_(mapped)) || rawDistrict || 'No response provided';
+    const district = canonical.get(key_(mapped)) ||
+      (key_(rawDistrict) === 'public school academy' ? 'Public School Academy' :
+        rawDistrict ? 'Other' : 'No response provided');
     if (canonical.has(key_(district))) represented.add(district);
     return {
       district,
-      level: clean_(row.level) || 'No response provided',
-      role: clean_(row.role) || 'No response provided'
+      level: displayLevel_(row.level),
+      role: displayRole_(row.role)
     };
-  });
+  }).sort((a, b) => a.district.localeCompare(b.district, 'en') ||
+    levelRank_(a.level) - levelRank_(b.level));
   return {
+    mostRecentResponseDate: latest ? latest.date : null,
     totalResponses: rows.length,
     districtsRepresented: represented.size,
     districtTotal: DISTRICTS.length,
