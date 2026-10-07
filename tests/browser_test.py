@@ -9,6 +9,8 @@ HTML = (ROOT / 'Index.html').read_text()
 BRIDGE = """
 window.fixture = __FIXTURE__;
 window.calls = 0;
+window.copiedText = '';
+Object.defineProperty(navigator, 'clipboard', {configurable:true, value:{writeText:async text => {window.copiedText = text;}}});
 window.replyMode = 'success';
 window.google = {script: {run: {
   withSuccessHandler(fn) { this.success = fn; return this; },
@@ -31,6 +33,10 @@ def check(page, selector, expected):
     actual = page.locator(selector).inner_text()
     assert actual == expected, (selector, actual, expected)
 
+HEADERS = ['District', 'School Level', 'Role with Primary Responsibility for EDP Coordination']
+def expected_copy(rows):
+    return '\n'.join(['\t'.join(HEADERS)] + ['\t'.join(row[key] for key in ['district','level','role']) for row in rows])
+
 def role(page, name):
     return page.locator('#role-chart li').filter(has=page.get_by_text(name, exact=True))
 
@@ -47,6 +53,12 @@ with sync_playwright() as p:
     load(page, FIXTURES['initial'])
     check(page, '#total', '7')
     check(page, '#represented', '3 of 28')
+    assert page.locator('#copy-table').is_enabled()
+    page.click('#copy-table')
+    assert page.evaluate('window.copiedText') == expected_copy(FIXTURES['initial']['rows'])
+    check(page, '#copy-status', 'Copied header and 7 response rows.')
+    assert page.evaluate('document.activeElement.id') == 'copy-table'
+    assert page.locator('#copy-table').get_attribute('aria-label') == 'Copy individual response table'
     assert page.locator('#refresh, #refreshed').count() == 0
     check(page, '#most-recent', '10/7/2026')
     check(page, '#aggregate-heading', 'Aggregated Response Data')
@@ -84,6 +96,10 @@ with sync_playwright() as p:
     page.select_option('#district', 'Avondale')
     page.select_option('#level', 'High School')
     check(page, '#result-count', '1 of 7 responses shown.')
+    page.click('#copy-table')
+    filtered=[r for r in FIXTURES['initial']['rows'] if r['district']=='Avondale' and r['level']=='High School']
+    assert page.evaluate('window.copiedText') == expected_copy(filtered)
+    check(page, '#copy-status', 'Copied header and 1 response row.')
     check(page, '#most-recent', '10/7/2026')
     assert role(page,'School counselor').locator('.bar-fill').evaluate('e=>getComputedStyle(e).backgroundColor') == colors['School counselor']
     assert page.locator('#role-chart li').count() == 5
@@ -96,6 +112,9 @@ with sync_playwright() as p:
     assert role(page, 'No response provided').locator('.role-count').inner_text() == '1 response (100%)'
     page.select_option('#level', 'Other')
     check(page, '#rows', 'No responses match the selected filters.')
+    page.click('#copy-table')
+    assert page.evaluate('window.copiedText') == '\t'.join(HEADERS)
+    assert 'No responses match' not in page.evaluate('window.copiedText')
     assert page.locator('#role-chart li').count() == 0
     check(page, '#role-summary', 'No responses match the selected filters.')
     page.click('#reset')
@@ -103,6 +122,26 @@ with sync_playwright() as p:
     check(page, '#result-count', '7 of 7 responses shown.')
     assert page.locator('#role-chart li').count() == 6
     print('PASS role chart counts/percentages, combined chart/table filters, summaries, reset, duplicate rows, blanks, safe text rendering, new layout')
+    page.click('#copy-table')
+    assert page.evaluate('window.copiedText') == expected_copy(FIXTURES['initial']['rows'])
+    # Test denied Clipboard API with the legacy browser fallback.
+    page.evaluate("navigator.clipboard.writeText = async () => {throw new Error('Denied')}; window.originalExecCommand=document.execCommand; document.execCommand=(command)=>{window.copiedText=document.activeElement.value;return command==='copy';}")
+    page.click('#copy-table')
+    assert page.evaluate('window.copiedText') == expected_copy(FIXTURES['initial']['rows'])
+    assert page.evaluate('document.activeElement.id') == 'copy-table'
+    # If both browser mechanisms fail, expose a selected manual-copy snapshot.
+    page.evaluate('document.execCommand=()=>false')
+    page.click('#copy-table')
+    assert page.locator('#copy-dialog').is_visible()
+    assert page.input_value('#copy-text') == expected_copy(FIXTURES['initial']['rows'])
+    assert page.evaluate('document.activeElement.id') == 'copy-text'
+    assert page.locator('#copy-text').evaluate('e=>e.selectionStart===0 && e.selectionEnd===e.value.length')
+    page.keyboard.press('Escape')
+    assert page.locator('#copy-dialog').is_hidden()
+    assert page.evaluate('document.activeElement.id') == 'copy-table'
+    page.evaluate("document.execCommand=window.originalExecCommand; navigator.clipboard.writeText=async text=>{window.copiedText=text;}")
+    print('PASS complete TSV header/rows, filtered/empty/reset copying, focus retention, denied-clipboard fallback, manual-copy dialog and Escape')
+
 
     page.select_option('#district', 'Avondale')
     page.select_option('#level', 'High School')
@@ -180,6 +219,7 @@ with sync_playwright() as p:
     initial = BRIDGE.replace('__FIXTURE__', json.dumps(FIXTURES['initial']).replace('<', '\\u003c')) + "window.replyMode = 'hold';"
     page.set_content(HTML.replace('<script>', '<script>' + initial, 1))
     check(page, '#total', '—')
+    assert page.locator('#copy-table').is_disabled()
     assert page.locator('#response-section').get_attribute('aria-busy') == 'true'
     page.evaluate("window.google.script.run.failure(new Error('fixture'))")
     check(page, '#result-count', 'Responses unavailable.')
@@ -209,6 +249,12 @@ with sync_playwright() as p:
     page.keyboard.press('ArrowDown')
     page.keyboard.press('Tab')
     assert page.input_value('#district') != ''
+    page.focus('#reset')
+    page.keyboard.press('Tab')
+    assert page.evaluate('document.activeElement.id') == 'copy-table'
+    assert page.locator(':focus').evaluate('e=>getComputedStyle(e).outlineStyle') != 'none'
+    page.keyboard.press('Enter')
+    assert page.evaluate('window.copiedText').startswith('\t'.join(HEADERS)+'\n')
     print('PASS keyboard tab order, native select keyboard use, reset activation, focus indicators and semantic checks')
 
     page.click('#reset')

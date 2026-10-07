@@ -33,3 +33,7 @@ Contrast measured against the light bar track is at least 5.59:1 for all six cat
 ## Remaining manual checks
 
 The owner previously reported a working deployed prototype; this revision has not been independently deployed or executed inside Google Apps Script from the workspace. Save both updated source files and deploy a new version. A real new form submission followed by deployed-page refresh, screen-reader speech (including revised headings and chart reading order), actual browser 200% zoom, real mobile devices, and forced-colors usability still require manual validation. Automated checks support accessibility goals but do not certify full WCAG 2.1 AA conformance.
+
+## Copy-table revision
+
+Updated browser tests pass for the exact full TSV header and all displayed rows, combined-filter export, header-only output for no matches, reset restoring full export, loading-state disabling, keyboard activation/focus, denied Clipboard API with browser fallback, and selected manual-copy dialog when both automated mechanisms fail. Escape closes the dialog and returns focus to the copy button. Data privacy normalization is preserved by copying the same display rows used by the table. Nine server tests and the browser suite pass; mobile and enlarged-text checks also pass. The desktop rendered copy icon was inspected beside the Individual Responses heading. Clipboard permissions in the actual deployed Apps Script iframe still require a manual check; the fallback dialog is included for browsers that block clipboard access.
