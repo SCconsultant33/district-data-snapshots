@@ -28,10 +28,10 @@ Chromium checks of the actual HTML with synthetic Apps Script bridge responses:
 - Combined district/level filters, no-match state, reset, blank answers, distinct participation, duplicate table rows, and unchanged summary counts during filtering.
 - HTML-like role values stay text rather than executing as markup.
 - Added-response simulation updates counts and awaiting districts while retaining both filter selections and keyboard focus.
-- Manual refresh; initial loading/failure; failure after a successful refresh; recovery; unchanged last-success timestamp on failure; request timeout and ignored late callback.
+- Initial loading/failure; failure after a successful refresh; recovery; request timeout and ignored late callback.
 - Automatic refresh after 60 seconds, no focus movement, pause while document is hidden, immediate refresh on visibility return.
 - All-districts completion message and empty dataset handling.
-- Keyboard Tab order through refresh/dropdowns/reset, native select keyboard operation, Enter activation, visible focus outlines, explicit table headers, labels, and a polite live region.
+- Keyboard Tab order through dropdowns/reset, native select keyboard operation, Enter activation, visible focus outlines, explicit table headers, labels, and a polite live region.
 - No horizontal page or cell overflow at a 320px viewport and with 200% text enlargement at a 640px viewport. Rendered mobile and enlarged-text screenshots inspected. Responsive rows retain explicit table roles/header associations and show visible field labels on narrow screens.
 
 Calculated WCAG contrast ratios: body 13.56:1; table text 14.55:1; header text 12.94:1; note 8.46:1; button 9.17:1; button hover 12.59:1; error 8.54:1; focus outline at least 7.29:1; control border 4.75:1. Normal text exceeds 4.5:1, and focus/control boundaries exceed 3:1. Color does not carry status alone; loading/error/success states have text.
@@ -51,3 +51,7 @@ The initial `SpreadsheetApp.openById` adapter could not execute with the read-on
 ## Publication baseline
 
 The owner confirmed the initial prototype works and requested publishing the current complete files to GitHub for version control. The six server tests and Chromium browser checks were rerun successfully before preparing this initial commit.
+
+## Layout revision validation
+
+The updated browser checks pass for removal of the refresh button/timestamp, the exact provided form description, awaiting districts preceding response details in four desktop columns, and the filtered role chart. On the seven-submission fixture, Counselor and No response provided each have two responses (28.6%); three other categories each have one (14.3%). Combined filters reduce the chart and table together; an Avondale/High School filter shows one Counselor response (100%). Berkley/High School shows one No response provided (100%). No-match and empty states clear the chart; reset restores the full distribution. Text rendering prevents HTML-like role labels from becoming markup. The six server tests and revised browser checks pass. Desktop/mobile rendered screenshots were inspected, with no page overflow at 320px or at 200% text enlargement. Actual screen-reader speech and browser zoom remain manual checks.

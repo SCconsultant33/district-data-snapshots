@@ -10,7 +10,7 @@
     * { box-sizing: border-box; }
     body { margin: 0; line-height: 1.5; }
     main { max-width: 70rem; margin: auto; padding: 1.5rem; }
-    h1 { font-size: clamp(1.5rem, 4vw, 2rem); line-height: 1.25; margin: 0 0 1.25rem; }
+    h1 { font-size: clamp(1.5rem, 4vw, 2rem); line-height: 1.25; margin: 0 0 .5rem; }
     h2 { font-size: 1.25rem; margin: 0 0 1rem; }
     p { margin: .5rem 0; }
     .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
@@ -24,9 +24,9 @@
     select { width: 100%; color: #172b3a; background: white; }
     button { color: white; background: #174b73; cursor: pointer; }
     button:hover { background: #103651; }
-    button[aria-disabled="true"] { cursor: wait; }
     :focus-visible { outline: 3px solid #8b3900; outline-offset: 3px; }
-    .refresh { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-bottom: .5rem; }
+    .description { margin: 0 0 1.5rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
     .status { min-height: 1.5rem; margin-bottom: 1rem; }
     .status[data-error="true"] { font-weight: 600; color: #8b1d1d; }
     section { margin-bottom: 1.25rem; }
@@ -37,9 +37,17 @@
     th:nth-child(1) { width: 25%; }
     th:nth-child(2) { width: 23%; }
     th:nth-child(3) { width: 52%; }
-    #awaiting-list { columns: 3 12rem; padding-left: 1.25rem; margin-bottom: 0; }
+    #awaiting-list { columns: 4 12rem; padding-left: 1.25rem; margin-bottom: 0; }
     #awaiting-list li { break-inside: avoid; margin-bottom: .35rem; }
     .note { color: #354b5c; }
+    .role-chart { list-style: none; padding: 0; margin: 1rem 0 0; }
+    .role-chart li { margin: 0 0 1rem; }
+    .role-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem; overflow-wrap: anywhere; }
+    .role-name { flex: 1 1 18rem; min-width: 0; font-weight: 600; }
+    .role-count { flex-shrink: 0; }
+    .bar-track { height: 1rem; margin-top: .35rem; background: #eef2f6; border: 1px solid #647585; border-radius: .2rem; overflow: hidden; }
+    .bar-fill { height: 100%; background: #174b73; }
+
     .skip { position: absolute; top: -10rem; left: 1rem; background: white; color: #174b73; padding: .75rem; z-index: 1; }
     .skip:focus { top: 1rem; }
     [hidden] { display: none !important; }
@@ -57,13 +65,14 @@
       .card, section { padding: 1rem; }
       th, td { padding: .5rem .25rem; }
     }
-    @media (forced-colors: active) { button { border: 1px solid ButtonText; } }
+    @media (forced-colors: active) { button { border: 1px solid ButtonText; } .bar-fill { background: Highlight; forced-color-adjust: none; } }
   </style>
 </head>
 <body>
   <a class="skip" href="#responses">Skip to responses</a>
   <main>
     <h1>District Data Snapshot: Counselor Career Tasks</h1>
+    <p class="description">This district snapshot is seeking to better understand school counselor responsibilities and expectations related to Educational Development Plan (EDP) administration and other career-related tasks.</p>
     <div class="cards">
       <article class="card" aria-labelledby="total-heading">
         <h2 id="total-heading">Total Responses</h2><p class="value" id="total">—</p>
@@ -72,28 +81,30 @@
         <h2 id="districts-heading">Districts Represented</h2><p class="value" id="represented">— of 28</p>
       </article>
     </div>
-    <div class="refresh">
-      <p>Data last refreshed: <time id="refreshed">Not yet refreshed</time></p>
-      <button id="refresh" type="button" aria-disabled="false">Refresh data</button>
-    </div>
+    <section aria-labelledby="awaiting-heading">
+      <h2 id="awaiting-heading">Awaiting Responses From:</h2>
+      <p id="awaiting-message">Waiting for current sheet data.</p>
+      <ul id="awaiting-list" hidden></ul>
+    </section>
     <p id="status" class="status" role="status" aria-live="polite" aria-atomic="true">Loading current sheet data…</p>
     <section aria-labelledby="responses" aria-busy="true" id="response-section">
-      <h2 id="responses" tabindex="-1">Responses</h2>
+      <h2 id="responses" tabindex="-1">Response details</h2>
       <div class="controls">
         <div class="field"><label for="district">District</label><select id="district"><option value="">All</option></select></div>
         <div class="field"><label for="level">School Level</label><select id="level"><option value="">All</option></select></div>
         <button id="reset" type="button">Reset filters</button>
       </div>
-      <table role="table">
+      <div aria-labelledby="role-heading">
+        <h2 id="role-heading">Role with Primary Responsibility</h2>
+        <p id="role-summary">Loading role distribution…</p>
+        <ul id="role-chart" class="role-chart" aria-label="EDP coordination role distribution"></ul>
+      </div>
+      <h2 id="table-heading">Responses</h2>
+      <table role="table" aria-labelledby="table-heading">
         <caption id="result-count">Loading responses…</caption>
         <thead role="rowgroup"><tr role="row"><th id="district-col" role="columnheader" scope="col">District</th><th id="level-col" role="columnheader" scope="col">School Level</th><th id="role-col" role="columnheader" scope="col">Role with Primary Responsibility for EDP Coordination</th></tr></thead>
         <tbody id="rows" role="rowgroup"><tr role="row"><td role="cell" colspan="3">Loading current sheet data…</td></tr></tbody>
       </table>
-    </section>
-    <section aria-labelledby="awaiting-heading">
-      <h2 id="awaiting-heading">Awaiting Responses From:</h2>
-      <p id="awaiting-message">Waiting for current sheet data.</p>
-      <ul id="awaiting-list" hidden></ul>
     </section>
     <p class="note">Responses reflect reported building-level practices and may vary within districts.</p>
   </main>
@@ -112,6 +123,7 @@
       function announce(message, error = false) {
         $('status').textContent = message;
         $('status').dataset.error = String(error);
+        $('status').classList.toggle('sr-only', !error);
       }
       function options(select, values) {
         const selected = select.value;
@@ -128,9 +140,43 @@
         return data.rows.filter(row => (!$('district').value || row.district === $('district').value)
           && (!$('level').value || row.level === $('level').value));
       }
+      function renderRoleChart(rows) {
+        const chart = document.createDocumentFragment();
+        const counts = new Map();
+        rows.forEach(row => counts.set(row.role, (counts.get(row.role) || 0) + 1));
+        const groups = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'en'));
+        groups.forEach(([role, count]) => {
+          const item = document.createElement('li');
+          const label = document.createElement('div');
+          label.className = 'role-label';
+          const name = document.createElement('span');
+          name.className = 'role-name';
+          name.textContent = role;
+          const value = document.createElement('span');
+          value.className = 'role-count';
+          const percent = count / rows.length * 100;
+          const formatted = new Intl.NumberFormat(undefined, {maximumFractionDigits: 1}).format(percent);
+          value.textContent = `${count} ${count === 1 ? 'response' : 'responses'} (${formatted}%)`;
+          label.append(name, value);
+          const track = document.createElement('div');
+          track.className = 'bar-track';
+          track.setAttribute('aria-hidden', 'true');
+          const bar = document.createElement('div');
+          bar.className = 'bar-fill';
+          bar.style.width = percent + '%';
+          track.append(bar);
+          item.append(label, track);
+          chart.append(item);
+        });
+        $('role-chart').replaceChildren(chart);
+        $('role-summary').textContent = rows.length
+          ? `Share of ${rows.length} filtered ${rows.length === 1 ? 'response' : 'responses'} for EDP coordination, including blank answers.`
+          : data.totalResponses ? 'No responses match the selected filters.' : 'No responses have been submitted yet.';
+      }
       function renderTable() {
         if (!data) return null;
         const rows = filteredRows();
+        renderRoleChart(rows);
         const fragment = document.createDocumentFragment();
         if (!rows.length) {
           const tr = document.createElement('tr');
@@ -173,39 +219,38 @@
         $('awaiting-list').hidden = !data.awaiting.length;
         $('awaiting-message').hidden = Boolean(data.awaiting.length);
         $('awaiting-message').textContent = 'All 28 districts have responded.';
-        $('refreshed').dateTime = data.refreshedAt;
-        $('refreshed').textContent = new Date(data.refreshedAt).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'long'});
         return renderTable();
       }
       function schedule() {
         clearTimeout(nextRefresh);
-        if (!document.hidden) nextRefresh = setTimeout(() => refresh(false), REFRESH_MS);
+        if (!document.hidden) nextRefresh = setTimeout(() => refresh(), REFRESH_MS);
       }
-      function refresh(manual) {
+      function refresh() {
         if (pending) return;
         clearTimeout(nextRefresh);
         pending = true;
         const current = ++requestId;
-        $('refresh').setAttribute('aria-disabled', 'true');
         $('response-section').setAttribute('aria-busy', 'true');
-        if (manual) announce(data ? 'Refreshing current sheet data…' : 'Loading current sheet data…');
         const timeout = setTimeout(() => finish(null), TIMEOUT_MS);
         function finish(result) {
           if (current !== requestId || !pending) return;
           clearTimeout(timeout);
           pending = false;
           ++requestId; // Ignore any late response from a timed-out request.
-          $('refresh').setAttribute('aria-disabled', 'false');
           $('response-section').setAttribute('aria-busy', 'false');
           if (result) {
+            const changed = !data || JSON.stringify(data.rows) !== JSON.stringify(result.rows);
+            const recovered = failed;
             data = result;
             failed = false;
-            announce('Data refreshed. ' + render());
+            const message = render();
+            if (changed || recovered) announce('Responses updated. ' + message);
           } else {
             failed = true;
-            announce('Unable to refresh current sheet data. ' + (data ? 'Showing data from the last successful refresh. ' : '') + 'Try Refresh data. If this continues, contact the dashboard owner.', true);
+            announce('Unable to refresh current sheet data. ' + (data ? 'Showing data from the last successful refresh. ' : '') + 'The dashboard will retry automatically. If this continues, contact the dashboard owner.', true);
             if (!data) {
               $('result-count').textContent = 'Responses unavailable.';
+              $('role-summary').textContent = 'Role distribution is unavailable until sheet data loads.';
               $('rows').firstElementChild.firstElementChild.textContent = 'Sheet data could not be loaded.';
               $('awaiting-message').textContent = 'District participation is unavailable until sheet data loads.';
             }
@@ -226,12 +271,11 @@
       $('reset').addEventListener('click', () => {
         $('district').value = ''; $('level').value = ''; filtersChanged();
       });
-      $('refresh').addEventListener('click', () => refresh(true));
       document.addEventListener('visibilitychange', () => {
         clearTimeout(nextRefresh);
-        if (!document.hidden) refresh(false);
+        if (!document.hidden) refresh();
       });
-      refresh(true);
+      refresh();
     })();
   </script>
 </body>

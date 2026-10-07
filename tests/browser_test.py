@@ -44,6 +44,15 @@ with sync_playwright() as p:
     load(page, FIXTURES['initial'])
     check(page, '#total', '7')
     check(page, '#represented', '3 of 28')
+    assert page.locator('#refresh, #refreshed').count() == 0
+    assert page.locator('.description').inner_text() == 'This district snapshot is seeking to better understand school counselor responsibilities and expectations related to Educational Development Plan (EDP) administration and other career-related tasks.'
+    assert page.evaluate("document.getElementById('awaiting-heading').compareDocumentPosition(document.getElementById('responses')) & Node.DOCUMENT_POSITION_FOLLOWING")
+    assert page.locator('#awaiting-list').evaluate("e => getComputedStyle(e).columnCount") == '4'
+    assert page.locator('#role-chart li').count() == 5
+    check(page, '#role-chart li:first-child .role-name', 'Counselor')
+    check(page, '#role-chart li:first-child .role-count', '2 responses (28.6%)')
+    assert abs(float(page.locator('#role-chart li:first-child .bar-fill').evaluate('e => parseFloat(e.style.width)')) - 200/7) < .001
+    assert page.locator('#role-chart script').count() == 0
     assert page.locator('#rows tr').count() == 7
     assert page.locator('#awaiting-list li').count() == 25
     assert page.locator('#rows').inner_text().count('Avondale') == 2
@@ -52,39 +61,45 @@ with sync_playwright() as p:
     page.select_option('#district', 'Avondale')
     page.select_option('#level', 'High School')
     check(page, '#result-count', '1 of 7 responses shown.')
+    assert page.locator('#role-chart li').count() == 1
+    check(page, '#role-chart .role-name', 'Counselor')
+    check(page, '#role-chart .role-count', '1 response (100%)')
     check(page, '#total', '7')
     check(page, '#represented', '3 of 28')
     page.select_option('#district', 'Berkley')
     check(page, '#rows td:nth-child(3)', 'No response provided')
+    check(page, '#role-chart .role-name', 'No response provided')
+    check(page, '#role-chart .role-count', '1 response (100%)')
     page.select_option('#level', 'Elementary')
     check(page, '#rows', 'No responses match the selected filters.')
+    assert page.locator('#role-chart li').count() == 0
+    check(page, '#role-summary', 'No responses match the selected filters.')
     page.click('#reset')
     assert page.input_value('#district') == '' and page.input_value('#level') == ''
     check(page, '#result-count', '7 of 7 responses shown.')
-    print('PASS combined filters, full-dataset summaries, reset, duplicate rows, blank answers, safe text rendering')
+    assert page.locator('#role-chart li').count() == 5
+    print('PASS role chart counts/percentages, combined chart/table filters, summaries, reset, duplicate rows, blanks, safe text rendering, new layout')
 
     page.select_option('#district', 'Avondale')
     page.select_option('#level', 'High School')
-    page.focus('#refresh')
+    page.focus('#district')
     page.evaluate('(value) => { window.fixture = value; }', FIXTURES['next'])
-    page.keyboard.press('Enter')
+    page.clock.fast_forward(60000)
     check(page, '#total', '8')
     check(page, '#represented', '4 of 28')
     assert page.input_value('#district') == 'Avondale'
     assert page.input_value('#level') == 'High School'
     check(page, '#result-count', '1 of 8 responses shown.')
-    assert page.evaluate('document.activeElement.id') == 'refresh'
+    assert page.evaluate('document.activeElement.id') == 'district'
     assert 'Clawson' not in page.locator('#awaiting-list').inner_text()
-    old_date = page.locator('#refreshed').inner_text()
     page.evaluate("window.replyMode = 'error'")
-    page.keyboard.press('Enter')
+    page.clock.fast_forward(60000)
     assert 'last successful refresh' in page.locator('#status').inner_text()
-    assert page.locator('#refreshed').inner_text() == old_date
     check(page, '#total', '8')
     page.evaluate("window.replyMode = 'success'")
-    page.keyboard.press('Enter')
+    page.clock.fast_forward(60000)
     assert page.locator('#status').get_attribute('data-error') == 'false'
-    print('PASS simulated added response, preserved filters/focus, manual refresh, error/stale-data state and recovery')
+    print('PASS simulated added response, preserved filters/focus, automatic updates, error/stale-data state and recovery')
 
     page.focus('#district')
     start = page.evaluate('window.calls')
@@ -102,19 +117,19 @@ with sync_playwright() as p:
 
     # A timed-out callback must not overwrite a later successful refresh.
     page.evaluate("window.replyMode = 'hold'")
-    page.click('#refresh')
+    page.clock.fast_forward(60000)
     page.clock.fast_forward(30000)
     assert 'Unable to refresh' in page.locator('#status').inner_text()
     page.evaluate('window.lateSuccess = window.google.script.run.success')
     page.evaluate("window.replyMode = 'success'")
-    page.click('#refresh')
+    page.clock.fast_forward(60000)
     page.evaluate('(value) => window.lateSuccess(value)', FIXTURES['empty'])
     check(page, '#total', '8')
     print('PASS timeout recovery and stale callback rejection')
 
     # Retain selections even if all matching submissions disappear.
     page.evaluate('(value) => { window.fixture = value; }', FIXTURES['empty'])
-    page.click('#refresh')
+    page.clock.fast_forward(60000)
     assert page.input_value('#district') == 'Avondale'
     assert page.input_value('#level') == 'High School'
     check(page, '#result-count', '0 of 0 responses shown.')
@@ -130,6 +145,8 @@ with sync_playwright() as p:
     check(page, '#total', '0')
     check(page, '#represented', '0 of 28')
     check(page, '#rows', 'No responses have been submitted yet.')
+    assert page.locator('#role-chart li').count() == 0
+    check(page, '#role-summary', 'No responses have been submitted yet.')
     assert page.locator('#awaiting-list li').count() == 28
     print('PASS empty dataset and all-districts completion state')
 
@@ -144,14 +161,14 @@ with sync_playwright() as p:
     print('PASS initial loading and connection failure')
 
     page.evaluate("window.replyMode = 'success'")
-    page.click('#refresh')
+    page.clock.fast_forward(60000)
     check(page, '#total', '7')
     assert page.locator('#status').get_attribute('data-error') == 'false'
     print('PASS recovery from initial connection failure')
 
     load(page, FIXTURES['initial'])
     page.focus('.skip')
-    expected = ['refresh','district','level','reset']
+    expected = ['district','level','reset']
     for name in expected:
         page.keyboard.press('Tab')
         assert page.evaluate('document.activeElement.id') == name
@@ -168,6 +185,8 @@ with sync_playwright() as p:
     assert page.input_value('#district') != ''
     print('PASS keyboard tab order, native select keyboard use, reset activation, focus indicators and semantic checks')
 
+    page.click('#reset')
+    page.screenshot(path='/tmp/district-desktop.png',full_page=True)
     page.set_viewport_size({'width': 320, 'height': 800})
     overflow(page)
     page.screenshot(path='/tmp/district-mobile.png',full_page=True)

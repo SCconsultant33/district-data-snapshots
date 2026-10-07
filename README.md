@@ -1,6 +1,6 @@
 # Counselor Career Tasks dashboard
 
-A Google Apps Script web app that reads the live **District Data Snapshot: Counselor Career Tasks (Responses)** spreadsheet on opening, manual refresh, and every 60 seconds while visible. No spreadsheet data is bundled in the app, and new submissions require no redeployment.
+A Google Apps Script web app that reads the live **District Data Snapshot: Counselor Career Tasks (Responses)** spreadsheet on opening and every 60 seconds while visible. There is no manual refresh control or displayed refresh timestamp. No spreadsheet data is bundled in the app, and new submissions require no redeployment.
 
 ## Files
 
@@ -31,7 +31,7 @@ Missing or duplicate mapped headers produce a connection/configuration error ins
 4. In Project Settings, enable **Show appsscript.json manifest file in editor**. Replace its contents with the supplied `appsscript.json`, then save.
 5. Select and run `getDashboardData` once in the editor. Authorize read-only spreadsheet access. The adapter uses the Advanced Google Sheets service with only `https://www.googleapis.com/auth/spreadsheets.readonly`. It does not use `SpreadsheetApp.openById`. Confirm execution succeeds; the owning account must retain access to the sheet. If it fails, verify the tab and exact header mappings in `CONFIG`.
 6. Choose Deploy → New deployment → Web app. Set **Execute as** to yourself, and choose the appropriate permitted audience (for example your organization). Viewers in that audience receive the dashboard's three display fields through the owner's sheet access. Use the organization's required access policy.
-7. Deploy, complete any authorization prompts, and open the resulting `/exec` URL. Verify the timestamp, counts, filters, and awaiting-district list. The `/dev` test URL is for script editors only.
+7. Deploy, complete any authorization prompts, and open the resulting `/exec` URL. Verify counts, filters, the filtered role distribution, and the awaiting-district list. The `/dev` test URL is for script editors only.
 
 Later **code** changes require editing the deployment to use a new version. Later **sheet responses** appear automatically without editing or redeploying code. No triggers, API key, client-side sheet publishing, or cached response file is needed. The owner reports that the initial deployed prototype works. Google deployment was performed by the owner, not from this workspace.
 
@@ -39,11 +39,11 @@ Later **code** changes require editing the deployment to use a new version. Late
 
 Every nonempty submission row counts, including Public School Academy and Other. A timestamp-only submission also counts; wholly blank rows do not. Standard Google Forms submissions include a Timestamp. Duplicate submissions remain separate rows. Only distinct names matching the 28-district reference list count toward participation. Awaiting districts are those reference districts with no submissions, alphabetically; Public School Academy and Other never enter that list.
 
-The District and School Level filters combine with AND and affect only the response table. Summary cards and participation always use all submissions. Reset sets both filters to All. Blank role answers display **No response provided**; blank district/level answers use the same label. Choices remain selected across refreshes, including when a chosen value no longer has any current rows.
+The District and School Level filters combine with AND and affect the role-distribution bar chart and response table together. Summary cards and participation always use all submissions. Reset sets both filters to All. Blank role answers display **No response provided**; blank district/level answers use the same label. Choices remain selected across refreshes, including when a chosen value no longer has any current rows.
 
-Only District, Level, and the EDP role are returned to viewers. Timestamp is read server-side to identify submissions; the displayed refresh time is the time of a successful sheet read, shown in the viewer's browser timezone. Email and open-ended answer columns are not read as response data or returned. HTML-like answers are rendered as text.
+Only District, Level, and the EDP role are returned to viewers. Timestamp is read server-side to identify submissions; no refresh timestamp is displayed. Email and open-ended answer columns are not read as response data or returned. HTML-like answers are rendered as text.
 
-The app pauses automatic refresh while the document is hidden and refreshes when it becomes visible again. Requests do not overlap. A request times out after 30 seconds; late replies are ignored. On an initial failure, counts remain unavailable. On a later failure, the last successful data and timestamp remain visible with an explicit stale-data message. A polite status region announces completed refreshes and filtered counts without moving focus. The manual refresh button retains focus while a request is pending.
+The app pauses automatic refresh while the document is hidden and refreshes when it becomes visible again. Requests do not overlap. A request times out after 30 seconds; late replies are ignored. On an initial failure, counts remain unavailable. On a later failure, the last successful data remain visible with an explicit stale-data message. The dashboard retries automatically. A visually hidden polite status region announces changed data and filtered counts without moving focus; unchanged polls remain silent. Errors remain visible.
 
 ## Run verification locally
 
@@ -59,10 +59,14 @@ The first command runs six server tests and writes synthetic browser fixtures to
 
 ## Final live/manual acceptance
 
-After deployment, submit a real response through the existing form (or coordinate an authorized test submission with the form owner). Leave the dashboard visible and confirm the new row and total within the next refresh cycle; check distinct participation only increases for a newly represented reference district. Verify selected filters remain unchanged and the timestamp advances. Keep this check separate from synthetic tests: this workspace did not add or modify sheet responses.
+After deployment, submit a real response through the existing form (or coordinate an authorized test submission with the form owner). Leave the dashboard visible and confirm the new row and total within the next refresh cycle; check distinct participation only increases for a newly represented reference district. Verify selected filters remain unchanged and the chart updates with the table. Keep this check separate from synthetic tests: this workspace did not add or modify sheet responses.
 
 Use keyboard-only navigation and a screen reader on the deployed page. Confirm table header associations, mobile table reading order, polite refresh announcements, labels, and retained focus. Check actual browser zoom at 200%, mobile portrait/landscape, and operating-system high-contrast mode. These platform and assistive-technology checks are needed before asserting full WCAG 2.1 AA conformance.
 
 ## Migrating from the earlier broad-scope manifest
 
 Replace both `Code.gs` and `appsscript.json` with the current read-only versions; changing only the manifest is insufficient. `Index.html` stays the same. If you already approved the earlier edit-capable spreadsheet scope, remove this script project's existing authorization under Google Account → Security → Your connections to third-party apps & services, then rerun `getDashboardData` and authorize the read-only version. Confirm you are removing the authorization for this script project. Update any existing web-app deployment to the new script version so it uses the read-only adapter. Old deployments must be updated or archived to prevent continued use of earlier code.
+
+## Layout and role distribution
+
+The supplied form description appears under the title. Awaiting districts appear immediately below the summary cards in up to four columns, reducing to fewer columns on narrow screens. A horizontal bar chart sits above the response table, using the same District and School Level filters. Each exact normalized role answer is one category; compound/multi-role answers are not split or inferred. Each submission contributes once, including blank answers shown as No response provided. Bars show the share of filtered submissions on a consistent 0–100% scale, with explicit counts and percentages. Categories sort by count descending, then alphabetically. The chart uses semantic text/list markup and CSS, with no external chart library.

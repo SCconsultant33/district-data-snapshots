@@ -62,7 +62,7 @@ function getDashboardData() {
   } catch (error) {
     // Do not expose Google exceptions, response values, or internal identifiers to viewers.
     console.error('Dashboard read failed: ' + error.message);
-    throw new Error('Unable to load current sheet data. Try Refresh data. If this continues, ask the dashboard owner to check spreadsheet access, the enabled Google Sheets service, the response tab, and header mappings.');
+    throw new Error('Unable to load current sheet data. The dashboard will retry automatically. If this continues, ask the dashboard owner to check spreadsheet access, the enabled Google Sheets service, the response tab, and header mappings.');
   }
 }
 
