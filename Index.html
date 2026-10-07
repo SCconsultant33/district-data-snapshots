@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>District Data Snapshot: Counselor Career Tasks</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172b3a; background: #f5f7fa; font-size: 100%; }
+    * { box-sizing: border-box; }
+    body { margin: 0; line-height: 1.5; }
+    main { max-width: 70rem; margin: auto; padding: 1.5rem; }
+    h1 { font-size: clamp(1.5rem, 4vw, 2rem); line-height: 1.25; margin: 0 0 1.25rem; }
+    h2 { font-size: 1.25rem; margin: 0 0 1rem; }
+    p { margin: .5rem 0; }
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .card, section { background: white; border: 1px solid #b8c3cd; border-radius: .5rem; padding: 1.25rem; }
+    .card h2 { font-size: 1rem; margin: 0 0 .5rem; }
+    .value { font-size: 1.8rem; font-weight: 700; margin: 0; }
+    .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 1rem 0; }
+    .field { flex: 1 1 12rem; min-width: 0; }
+    label { display: block; font-weight: 600; margin-bottom: .35rem; }
+    select, button { font: inherit; min-height: 2.75rem; border: 1px solid #647585; border-radius: .25rem; padding: .5rem .75rem; }
+    select { width: 100%; color: #172b3a; background: white; }
+    button { color: white; background: #174b73; cursor: pointer; }
+    button:hover { background: #103651; }
+    button[aria-disabled="true"] { cursor: wait; }
+    :focus-visible { outline: 3px solid #8b3900; outline-offset: 3px; }
+    .refresh { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-bottom: .5rem; }
+    .status { min-height: 1.5rem; margin-bottom: 1rem; }
+    .status[data-error="true"] { font-weight: 600; color: #8b1d1d; }
+    section { margin-bottom: 1.25rem; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    caption { text-align: left; margin: 0 0 .75rem; font-weight: 600; }
+    th, td { text-align: left; vertical-align: top; padding: .75rem .5rem; border-bottom: 1px solid #b8c3cd; overflow-wrap: anywhere; }
+    th { background: #eef2f6; }
+    th:nth-child(1) { width: 25%; }
+    th:nth-child(2) { width: 23%; }
+    th:nth-child(3) { width: 52%; }
+    #awaiting-list { columns: 3 12rem; padding-left: 1.25rem; margin-bottom: 0; }
+    #awaiting-list li { break-inside: avoid; margin-bottom: .35rem; }
+    .note { color: #354b5c; }
+    .skip { position: absolute; top: -10rem; left: 1rem; background: white; color: #174b73; padding: .75rem; z-index: 1; }
+    .skip:focus { top: 1rem; }
+    [hidden] { display: none !important; }
+    .mobile-label { display: none; }
+    @media (max-width: 45rem) {
+      .cards { grid-template-columns: 1fr; }
+      thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+      tbody tr { display: block; padding: .75rem 0; border-bottom: 1px solid #b8c3cd; }
+      tbody td { display: block; width: 100%; border: 0; padding: .35rem 0; }
+      .mobile-label { display: block; font-weight: 600; }
+    }
+    @media (max-width: 35rem) {
+      main { padding: 1rem; }
+      .cards { grid-template-columns: 1fr; }
+      .card, section { padding: 1rem; }
+      th, td { padding: .5rem .25rem; }
+    }
+    @media (forced-colors: active) { button { border: 1px solid ButtonText; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#responses">Skip to responses</a>
+  <main>
+    <h1>District Data Snapshot: Counselor Career Tasks</h1>
+    <div class="cards">
+      <article class="card" aria-labelledby="total-heading">
+        <h2 id="total-heading">Total Responses</h2><p class="value" id="total">—</p>
+      </article>
+      <article class="card" aria-labelledby="districts-heading">
+        <h2 id="districts-heading">Districts Represented</h2><p class="value" id="represented">— of 28</p>
+      </article>
+    </div>
+    <div class="refresh">
+      <p>Data last refreshed: <time id="refreshed">Not yet refreshed</time></p>
+      <button id="refresh" type="button" aria-disabled="false">Refresh data</button>
+    </div>
+    <p id="status" class="status" role="status" aria-live="polite" aria-atomic="true">Loading current sheet data…</p>
+    <section aria-labelledby="responses" aria-busy="true" id="response-section">
+      <h2 id="responses" tabindex="-1">Responses</h2>
+      <div class="controls">
+        <div class="field"><label for="district">District</label><select id="district"><option value="">All</option></select></div>
+        <div class="field"><label for="level">School Level</label><select id="level"><option value="">All</option></select></div>
+        <button id="reset" type="button">Reset filters</button>
+      </div>
+      <table role="table">
+        <caption id="result-count">Loading responses…</caption>
+        <thead role="rowgroup"><tr role="row"><th id="district-col" role="columnheader" scope="col">District</th><th id="level-col" role="columnheader" scope="col">School Level</th><th id="role-col" role="columnheader" scope="col">Role with Primary Responsibility for EDP Coordination</th></tr></thead>
+        <tbody id="rows" role="rowgroup"><tr role="row"><td role="cell" colspan="3">Loading current sheet data…</td></tr></tbody>
+      </table>
+    </section>
+    <section aria-labelledby="awaiting-heading">
+      <h2 id="awaiting-heading">Awaiting Responses From:</h2>
+      <p id="awaiting-message">Waiting for current sheet data.</p>
+      <ul id="awaiting-list" hidden></ul>
+    </section>
+    <p class="note">Responses reflect reported building-level practices and may vary within districts.</p>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const $ = id => document.getElementById(id);
+      let data = null;
+      let pending = false;
+      let requestId = 0;
+      let nextRefresh;
+      let failed = false;
+      const REFRESH_MS = 60000;
+      const TIMEOUT_MS = 30000;
+
+      function announce(message, error = false) {
+        $('status').textContent = message;
+        $('status').dataset.error = String(error);
+      }
+      function options(select, values) {
+        const selected = select.value;
+        const unique = [...new Set(values)].sort((a, b) => a.localeCompare(b, 'en'));
+        // Keep a selected value even when its final matching response was removed.
+        if (selected && !unique.includes(selected)) unique.push(selected);
+        const fragment = document.createDocumentFragment();
+        fragment.append(new Option('All', ''));
+        unique.forEach(value => fragment.append(new Option(value, value)));
+        select.replaceChildren(fragment);
+        select.value = selected;
+      }
+      function filteredRows() {
+        return data.rows.filter(row => (!$('district').value || row.district === $('district').value)
+          && (!$('level').value || row.level === $('level').value));
+      }
+      function renderTable() {
+        if (!data) return null;
+        const rows = filteredRows();
+        const fragment = document.createDocumentFragment();
+        if (!rows.length) {
+          const tr = document.createElement('tr');
+          tr.setAttribute('role', 'row');
+          const td = document.createElement('td');
+          td.setAttribute('role', 'cell');
+          td.colSpan = 3;
+          td.textContent = data.totalResponses ? 'No responses match the selected filters.' : 'No responses have been submitted yet.';
+          tr.append(td); fragment.append(tr);
+        } else rows.forEach(row => {
+          const tr = document.createElement('tr');
+          tr.setAttribute('role', 'row');
+          ['district', 'level', 'role'].forEach(key => {
+            const td = document.createElement('td');
+            td.setAttribute('role', 'cell');
+            td.setAttribute('headers', key + '-col');
+            const label = document.createElement('span');
+            label.className = 'mobile-label';
+            label.setAttribute('aria-hidden', 'true');
+            label.textContent = {district: 'District', level: 'School Level', role: 'Role with Primary Responsibility for EDP Coordination'}[key];
+            td.append(label, document.createTextNode(row[key])); tr.append(td);
+          });
+          fragment.append(tr);
+        });
+        $('rows').replaceChildren(fragment);
+        const message = `${rows.length} of ${data.totalResponses} responses shown.`;
+        $('result-count').textContent = message;
+        return message;
+      }
+      function render() {
+        $('total').textContent = data.totalResponses;
+        $('represented').textContent = `${data.districtsRepresented} of ${data.districtTotal}`;
+        options($('district'), data.rows.map(row => row.district));
+        options($('level'), data.rows.map(row => row.level));
+        const fragment = document.createDocumentFragment();
+        data.awaiting.forEach(name => {
+          const li = document.createElement('li'); li.textContent = name; fragment.append(li);
+        });
+        $('awaiting-list').replaceChildren(fragment);
+        $('awaiting-list').hidden = !data.awaiting.length;
+        $('awaiting-message').hidden = Boolean(data.awaiting.length);
+        $('awaiting-message').textContent = 'All 28 districts have responded.';
+        $('refreshed').dateTime = data.refreshedAt;
+        $('refreshed').textContent = new Date(data.refreshedAt).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'long'});
+        return renderTable();
+      }
+      function schedule() {
+        clearTimeout(nextRefresh);
+        if (!document.hidden) nextRefresh = setTimeout(() => refresh(false), REFRESH_MS);
+      }
+      function refresh(manual) {
+        if (pending) return;
+        clearTimeout(nextRefresh);
+        pending = true;
+        const current = ++requestId;
+        $('refresh').setAttribute('aria-disabled', 'true');
+        $('response-section').setAttribute('aria-busy', 'true');
+        if (manual) announce(data ? 'Refreshing current sheet data…' : 'Loading current sheet data…');
+        const timeout = setTimeout(() => finish(null), TIMEOUT_MS);
+        function finish(result) {
+          if (current !== requestId || !pending) return;
+          clearTimeout(timeout);
+          pending = false;
+          ++requestId; // Ignore any late response from a timed-out request.
+          $('refresh').setAttribute('aria-disabled', 'false');
+          $('response-section').setAttribute('aria-busy', 'false');
+          if (result) {
+            data = result;
+            failed = false;
+            announce('Data refreshed. ' + render());
+          } else {
+            failed = true;
+            announce('Unable to refresh current sheet data. ' + (data ? 'Showing data from the last successful refresh. ' : '') + 'Try Refresh data. If this continues, contact the dashboard owner.', true);
+            if (!data) {
+              $('result-count').textContent = 'Responses unavailable.';
+              $('rows').firstElementChild.firstElementChild.textContent = 'Sheet data could not be loaded.';
+              $('awaiting-message').textContent = 'District participation is unavailable until sheet data loads.';
+            }
+          }
+          schedule();
+        }
+        try {
+          google.script.run.withSuccessHandler(result => finish(result))
+            .withFailureHandler(() => finish(null)).getDashboardData();
+        } catch (error) { finish(null); }
+      }
+      function filtersChanged() {
+        const message = renderTable();
+        if (message) announce(message + (failed ? ' Showing data from the last successful refresh; the latest refresh failed.' : ''), failed);
+      }
+      $('district').addEventListener('change', filtersChanged);
+      $('level').addEventListener('change', filtersChanged);
+      $('reset').addEventListener('click', () => {
+        $('district').value = ''; $('level').value = ''; filtersChanged();
+      });
+      $('refresh').addEventListener('click', () => refresh(true));
+      document.addEventListener('visibilitychange', () => {
+        clearTimeout(nextRefresh);
+        if (!document.hidden) refresh(false);
+      });
+      refresh(true);
+    })();
+  </script>
+</body>
+</html>

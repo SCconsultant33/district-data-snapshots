@@ -1,0 +1,15 @@
+{
+  "inspectedAt": "2026-10-07T12:51:18.292799+00:00",
+  "sourceUrl": "https://docs.google.com/spreadsheets/d/1MUUcwT7SFizDAqoZmbU3GZmz-GyDhXQnd7-G0XvgRyw/edit",
+  "tab": "Form Responses 1",
+  "gid": "748758638",
+  "submissionCount": 0,
+  "headers": [
+    "Timestamp",
+    "District",
+    "Level",
+    "Which role has primary responsibility for coordinating EDP activities at your building?",
+    "Briefly describe any additional career-related tasks that the school counselor is expected to coordinate or administer as part of their role in your building."
+  ],
+  "method": "Live Google Sheets edit page and gviz CSV endpoint; no Excel snapshot used."
+}
